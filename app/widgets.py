@@ -42,11 +42,13 @@ import traceback as _traceback
 
 def safe_run(method):
     """Decorator for panel _run* slots: catches any exception and shows an
-    error dialog instead of letting the app crash."""
+    error dialog instead of letting the app crash.
+    Qt signals (e.g. clicked(bool)) may pass extra args — they are intentionally
+    discarded because none of the decorated slots accept parameters."""
     @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *_qt_args, **_qt_kwargs):
         try:
-            return method(self, *args, **kwargs)
+            return method(self)
         except Exception as exc:
             detail = _traceback.format_exc()
             brief  = str(exc) if str(exc) else type(exc).__name__
