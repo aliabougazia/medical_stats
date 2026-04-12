@@ -9,7 +9,7 @@ import pandas as pd
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QSpinBox, QGroupBox, QSplitter, QTabWidget, QComboBox,
-    QScrollArea, QFormLayout, QFrame,
+    QScrollArea, QFormLayout, QFrame, QListWidget, QAbstractItemView,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -120,17 +120,25 @@ class DiagnosticPanel(QWidget):
         fd_lay = QFormLayout(grp_fd)
 
         self._fd_test_col  = QComboBox()   # which column = test result
-        self._fd_test_pos  = QComboBox()   # which value   = Test +
         self._fd_ref_col   = QComboBox()   # which column = reference / disease
-        self._fd_ref_pos   = QComboBox()   # which value   = Disease +
+
+        def _make_val_list():
+            lw = QListWidget()
+            lw.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+            lw.setFixedHeight(72)
+            lw.setToolTip("Ctrl+click to select multiple positive values")
+            return lw
+
+        self._fd_test_pos  = _make_val_list()   # value(s) = Test +
+        self._fd_ref_pos   = _make_val_list()   # value(s) = Disease +
 
         fd_lay.addRow("Test result column:",    self._fd_test_col)
-        fd_lay.addRow("Test positive value:",  self._fd_test_pos)
+        fd_lay.addRow("Test positive value(s):\n(Ctrl+click multi-select)",  self._fd_test_pos)
         fd_lay.addRow("Reference/Disease column:", self._fd_ref_col)
-        fd_lay.addRow("Disease positive value:",   self._fd_ref_pos)
+        fd_lay.addRow("Disease positive value(s):\n(Ctrl+click multi-select)",   self._fd_ref_pos)
 
         hint_fd = QLabel(
-            "Example: Test col = 'US_Result', Test+ = 'Positive';  "
+            "Example: Test col = 'US_Result', Test+ = 'Positive', 'Suspicious';  "
             "Reference col = 'Pathology', Disease+ = 'Malignant'."
         )
         hint_fd.setObjectName("muted"); hint_fd.setWordWrap(True)
@@ -150,7 +158,7 @@ class DiagnosticPanel(QWidget):
         sd_lay.addStretch()
         left_tabs.addTab(sub_data, "  📊  From Data  ")
 
-        # Connect column combos → repopulate value combos
+        # Connect column combos \u2192 repopulate value lists
         self._fd_test_col.currentTextChanged.connect(
             lambda: self._refresh_fd_values(self._fd_test_col, self._fd_test_pos))
         self._fd_ref_col.currentTextChanged.connect(
@@ -241,17 +249,17 @@ class DiagnosticPanel(QWidget):
         self._refresh_fd_values(self._fd_test_col, self._fd_test_pos)
         self._refresh_fd_values(self._fd_ref_col,  self._fd_ref_pos)
 
-    def _refresh_fd_values(self, col_combo: "QComboBox", val_combo: "QComboBox"):
-        """Populate a value combo with the unique values of a column combo's selection."""
+    def _refresh_fd_values(self, col_combo: "QComboBox", val_list: "QListWidget"):
+        """Populate a value list with the unique values of a column combo's selection."""
         df = data_store.df
-        val_combo.clear()
+        val_list.clear()
         if df is None:
             return
         col = col_combo.currentText()
         if not col or col not in df.columns:
             return
         uniq = [str(v) for v in sorted(df[col].dropna().unique(), key=str)]
-        val_combo.addItems(uniq)
+        val_list.addItems(uniq)
 
     def _refresh_class_combos(self):
         """Populate neg/pos class combos with unique values from the label column."""
@@ -278,38 +286,48 @@ class DiagnosticPanel(QWidget):
         df = data_store.df
         if df is None:
             self.status_message.emit("No data loaded."); return
-        test_col  = self._fd_test_col.currentText()
-        test_pos  = self._fd_test_pos.currentText()
-        ref_col   = self._fd_ref_col.currentText()
-        ref_pos   = self._fd_ref_pos.currentText()
-        if not all([test_col, test_pos, ref_col, ref_pos]):
-            self.status_message.emit("Select all four column/value fields."); return
+        test_col = self._fd_test_col.currentText()
+        ref_col  = self._fd_ref_col.currentText()
+        test_pos_vals = {item.text() for item in self._fd_test_pos.selectedItems()}
+        ref_pos_vals  = {item.text() for item in self._fd_ref_pos.selectedItems()}
+        if not test_col or not ref_col:
+            self.status_message.emit("Select both column fields."); return
+        if not test_pos_vals:
+            self.status_message.emit("Select at least one Test positive value."); return
+        if not ref_pos_vals:
+            self.status_message.emit("Select at least one Disease positive value."); return
 
         t = df[test_col].astype(str)
         r = df[ref_col].astype(str)
         valid = t.notna() & r.notna()
         t, r = t[valid], r[valid]
 
-        tp = int(((t == test_pos) & (r == ref_pos)).sum())
-        fp = int(((t == test_pos) & (r != ref_pos)).sum())
-        fn = int(((t != test_pos) & (r == ref_pos)).sum())
-        tn = int(((t != test_pos) & (r != ref_pos)).sum())
+        t_pos = t.isin(test_pos_vals)
+        r_pos = r.isin(ref_pos_vals)
 
-        # Show preview label
+        tp = int(( t_pos &  r_pos).sum())
+        fp = int(( t_pos & ~r_pos).sum())
+        fn = int((~t_pos &  r_pos).sum())
+        tn = int((~t_pos & ~r_pos).sum())
+
+        pos_lbl_t = ", ".join(sorted(test_pos_vals))
+        pos_lbl_r = ", ".join(sorted(ref_pos_vals))
+
         self._fd_preview.setText(
-            f"<b>Computed 2×2 table:</b><br>"
+            f"<b>Computed 2\u00d72 table:</b><br>"
+            f"Test+ = {{{pos_lbl_t}}},  Disease+ = {{{pos_lbl_r}}}<br>"
             f"TP (Test+ &amp; Disease+) = {tp}<br>"
-            f"FP (Test+ &amp; Disease−) = {fp}<br>"
-            f"FN (Test− &amp; Disease+) = {fn}<br>"
-            f"TN (Test− &amp; Disease−) = {tn}<br>"
+            f"FP (Test+ &amp; Disease\u2212) = {fp}<br>"
+            f"FN (Test\u2212 &amp; Disease+) = {fn}<br>"
+            f"TN (Test\u2212 &amp; Disease\u2212) = {tn}<br>"
             f"Total N = {tp+fp+fn+tn}"
         )
 
-        # Populate the Manual spin-boxes (so user can inspect / tweak)
+        # Populate the Manual spin-boxes so the user can inspect / tweak
         self._tp.setValue(tp); self._fp.setValue(fp)
         self._fn.setValue(fn); self._tn.setValue(tn)
 
-        # Run the same analysis as manual
+        # Run the same analysis as the manual tab
         self._run_manual()
 
     # ── Manual 2×2 analysis ───────────────────────────────────────────────────
