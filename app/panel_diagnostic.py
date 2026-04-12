@@ -59,17 +59,19 @@ class DiagnosticPanel(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # Left: entry form
-        left = QScrollArea(); left.setWidgetResizable(True); left.setMaximumWidth(360)
-        lw   = QWidget()
-        llay = QVBoxLayout(lw)
-        llay.setContentsMargins(4, 4, 4, 4)
-        llay.setSpacing(10)
+        # ── Left: inner sub-tabs (Manual entry | From Data) ────────────────
+        left_tabs = QTabWidget()
+        left_tabs.setFixedWidth(370)
+
+        # -------- sub-tab A: manual spin boxes --------
+        sub_manual = QWidget()
+        sm_lay = QVBoxLayout(sub_manual)
+        sm_lay.setContentsMargins(4, 8, 4, 4)
+        sm_lay.setSpacing(10)
 
         grp = QGroupBox("Enter 2×2 Contingency Table")
         g_lay = QVBoxLayout(grp)
 
-        # Table layout visual
         tbl_widget = QFrame()
         tbl_widget.setStyleSheet("background:#1e293b; border-radius:6px;")
         tbl_lay = QVBoxLayout(tbl_widget)
@@ -104,11 +106,57 @@ class DiagnosticPanel(QWidget):
         run_btn.setObjectName("primary"); run_btn.setMinimumHeight(36)
         run_btn.clicked.connect(self._run_manual)
         g_lay.addWidget(run_btn)
-        llay.addWidget(grp)
-        llay.addStretch()
-        left.setWidget(lw)
+        sm_lay.addWidget(grp)
+        sm_lay.addStretch()
+        left_tabs.addTab(sub_manual, "  ✏️  Manual Entry  ")
 
-        # Right
+        # -------- sub-tab B: from loaded data --------
+        sub_data = QWidget()
+        sd_lay = QVBoxLayout(sub_data)
+        sd_lay.setContentsMargins(4, 8, 4, 4)
+        sd_lay.setSpacing(10)
+
+        grp_fd = QGroupBox("Map Data Columns to 2×2 Table")
+        fd_lay = QFormLayout(grp_fd)
+
+        self._fd_test_col  = QComboBox()   # which column = test result
+        self._fd_test_pos  = QComboBox()   # which value   = Test +
+        self._fd_ref_col   = QComboBox()   # which column = reference / disease
+        self._fd_ref_pos   = QComboBox()   # which value   = Disease +
+
+        fd_lay.addRow("Test result column:",    self._fd_test_col)
+        fd_lay.addRow("Test positive value:",  self._fd_test_pos)
+        fd_lay.addRow("Reference/Disease column:", self._fd_ref_col)
+        fd_lay.addRow("Disease positive value:",   self._fd_ref_pos)
+
+        hint_fd = QLabel(
+            "Example: Test col = 'US_Result', Test+ = 'Positive';  "
+            "Reference col = 'Pathology', Disease+ = 'Malignant'."
+        )
+        hint_fd.setObjectName("muted"); hint_fd.setWordWrap(True)
+        fd_lay.addRow(hint_fd)
+        sd_lay.addWidget(grp_fd)
+
+        # Live preview of computed 2×2
+        self._fd_preview = QLabel("")
+        self._fd_preview.setObjectName("muted")
+        self._fd_preview.setWordWrap(True)
+        sd_lay.addWidget(self._fd_preview)
+
+        run_fd_btn = QPushButton("▶  Build Table & Calculate")
+        run_fd_btn.setObjectName("primary"); run_fd_btn.setMinimumHeight(36)
+        run_fd_btn.clicked.connect(self._run_from_data)
+        sd_lay.addWidget(run_fd_btn)
+        sd_lay.addStretch()
+        left_tabs.addTab(sub_data, "  📊  From Data  ")
+
+        # Connect column combos → repopulate value combos
+        self._fd_test_col.currentTextChanged.connect(
+            lambda: self._refresh_fd_values(self._fd_test_col, self._fd_test_pos))
+        self._fd_ref_col.currentTextChanged.connect(
+            lambda: self._refresh_fd_values(self._fd_ref_col, self._fd_ref_pos))
+
+        # ── Right: shared results ─────────────────────────────────────
         right = QWidget()
         rlay  = QVBoxLayout(right)
         rlay.setContentsMargins(8, 0, 0, 0)
@@ -117,7 +165,7 @@ class DiagnosticPanel(QWidget):
         rlay.addWidget(self._manual_table, stretch=1)
         rlay.addWidget(self._manual_plot, stretch=1)
 
-        splitter.addWidget(left); splitter.addWidget(right)
+        splitter.addWidget(left_tabs); splitter.addWidget(right)
         splitter.setStretchFactor(1, 1)
         lay.addWidget(splitter, stretch=1)
 
@@ -184,11 +232,26 @@ class DiagnosticPanel(QWidget):
 
     def _on_data_change(self):
         df = data_store.df
-        for combo in (self._roc_score_col, self._roc_label_col):
+        cols = list(df.columns) if df is not None else []
+        for combo in (self._roc_score_col, self._roc_label_col,
+                      self._fd_test_col, self._fd_ref_col):
             combo.clear()
-            if df is not None:
-                combo.addItems(list(df.columns))
+            combo.addItems(cols)
         self._refresh_class_combos()
+        self._refresh_fd_values(self._fd_test_col, self._fd_test_pos)
+        self._refresh_fd_values(self._fd_ref_col,  self._fd_ref_pos)
+
+    def _refresh_fd_values(self, col_combo: "QComboBox", val_combo: "QComboBox"):
+        """Populate a value combo with the unique values of a column combo's selection."""
+        df = data_store.df
+        val_combo.clear()
+        if df is None:
+            return
+        col = col_combo.currentText()
+        if not col or col not in df.columns:
+            return
+        uniq = [str(v) for v in sorted(df[col].dropna().unique(), key=str)]
+        val_combo.addItems(uniq)
 
     def _refresh_class_combos(self):
         """Populate neg/pos class combos with unique values from the label column."""
@@ -207,6 +270,47 @@ class DiagnosticPanel(QWidget):
         if len(unique_vals) >= 2:
             self._roc_neg_val.setCurrentIndex(0)
             self._roc_pos_val.setCurrentIndex(len(unique_vals) - 1)
+
+    # ── From-data 2×2 builder ─────────────────────────────────────────────────
+
+    @safe_run
+    def _run_from_data(self):
+        df = data_store.df
+        if df is None:
+            self.status_message.emit("No data loaded."); return
+        test_col  = self._fd_test_col.currentText()
+        test_pos  = self._fd_test_pos.currentText()
+        ref_col   = self._fd_ref_col.currentText()
+        ref_pos   = self._fd_ref_pos.currentText()
+        if not all([test_col, test_pos, ref_col, ref_pos]):
+            self.status_message.emit("Select all four column/value fields."); return
+
+        t = df[test_col].astype(str)
+        r = df[ref_col].astype(str)
+        valid = t.notna() & r.notna()
+        t, r = t[valid], r[valid]
+
+        tp = int(((t == test_pos) & (r == ref_pos)).sum())
+        fp = int(((t == test_pos) & (r != ref_pos)).sum())
+        fn = int(((t != test_pos) & (r == ref_pos)).sum())
+        tn = int(((t != test_pos) & (r != ref_pos)).sum())
+
+        # Show preview label
+        self._fd_preview.setText(
+            f"<b>Computed 2×2 table:</b><br>"
+            f"TP (Test+ &amp; Disease+) = {tp}<br>"
+            f"FP (Test+ &amp; Disease−) = {fp}<br>"
+            f"FN (Test− &amp; Disease+) = {fn}<br>"
+            f"TN (Test− &amp; Disease−) = {tn}<br>"
+            f"Total N = {tp+fp+fn+tn}"
+        )
+
+        # Populate the Manual spin-boxes (so user can inspect / tweak)
+        self._tp.setValue(tp); self._fp.setValue(fp)
+        self._fn.setValue(fn); self._tn.setValue(tn)
+
+        # Run the same analysis as manual
+        self._run_manual()
 
     # ── Manual 2×2 analysis ───────────────────────────────────────────────────
 
