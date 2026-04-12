@@ -142,12 +142,21 @@ class DiagnosticPanel(QWidget):
         g_lay = QFormLayout(grp)
         self._roc_score_col  = QComboBox()
         self._roc_label_col  = QComboBox()
+        self._roc_neg_val    = QComboBox()   # which value maps to 0
+        self._roc_pos_val    = QComboBox()   # which value maps to 1
         g_lay.addRow("Score / Predictor:", self._roc_score_col)
-        g_lay.addRow("True Label (0/1):", self._roc_label_col)
-        hint2 = QLabel("Label column must be binary (0 = negative, 1 = positive).")
+        g_lay.addRow("Label column:", self._roc_label_col)
+        g_lay.addRow("Negative class (= 0):", self._roc_neg_val)
+        g_lay.addRow("Positive class (= 1):", self._roc_pos_val)
+        hint2 = QLabel(
+            "Select which label value is the positive class (e.g. Malignant = 1). "
+            "Any column type is accepted — values will be encoded automatically."
+        )
         hint2.setObjectName("muted"); hint2.setWordWrap(True)
         g_lay.addRow(hint2)
         llay.addWidget(grp)
+        # Repopulate class selectors when label column changes
+        self._roc_label_col.currentTextChanged.connect(self._refresh_class_combos)
 
         roc_run = QPushButton("▶  Compute ROC Curve")
         roc_run.setObjectName("primary"); roc_run.setMinimumHeight(36)
@@ -179,6 +188,25 @@ class DiagnosticPanel(QWidget):
             combo.clear()
             if df is not None:
                 combo.addItems(list(df.columns))
+        self._refresh_class_combos()
+
+    def _refresh_class_combos(self):
+        """Populate neg/pos class combos with unique values from the label column."""
+        df = data_store.df
+        self._roc_neg_val.clear()
+        self._roc_pos_val.clear()
+        if df is None:
+            return
+        col = self._roc_label_col.currentText()
+        if not col or col not in df.columns:
+            return
+        unique_vals = [str(v) for v in sorted(df[col].dropna().unique(), key=str)]
+        self._roc_neg_val.addItems(unique_vals)
+        self._roc_pos_val.addItems(unique_vals)
+        # Default: first value = negative, last = positive
+        if len(unique_vals) >= 2:
+            self._roc_neg_val.setCurrentIndex(0)
+            self._roc_pos_val.setCurrentIndex(len(unique_vals) - 1)
 
     # ── Manual 2×2 analysis ───────────────────────────────────────────────────
 
@@ -248,7 +276,24 @@ class DiagnosticPanel(QWidget):
         if not score_col or not label_col:
             self.status_message.emit("Select both score and label columns."); return
 
-        res = roc_analysis(df[label_col], df[score_col])
+        neg_str = self._roc_neg_val.currentText()
+        pos_str = self._roc_pos_val.currentText()
+        if neg_str == pos_str:
+            self.status_message.emit("Negative and positive classes must be different."); return
+
+        # Encode label column: pos_val → 1, neg_val → 0, anything else → NaN
+        raw_label = df[label_col].astype(str)
+        encoded = raw_label.map(lambda v: 1 if v == pos_str else (0 if v == neg_str else np.nan))
+        valid_mask = encoded.notna()
+        n_excluded = (~valid_mask).sum()
+        encoded   = encoded[valid_mask].astype(int)
+        score_ser = df.loc[valid_mask, score_col]
+
+        if n_excluded > 0:
+            self.status_message.emit(
+                f"Note: {n_excluded} rows excluded (label not in selected classes).")
+
+        res = roc_analysis(encoded, score_ser)
         if "error" in res:
             self.status_message.emit(res["error"]); return
 
