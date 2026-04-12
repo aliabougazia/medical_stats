@@ -1,0 +1,127 @@
+Collecting PyQt6
+  Downloading pyqt6-6.11.0-cp310-abi3-manylinux_2_34_x86_64.whl.metadata (2.1 kB)
+Requirement already satisfied: pandas in /home/aa/.local/lib/python3.11/site-packages (2.3.3)
+Collecting numpy
+  Downloading numpy-2.4.4-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Requirement already satisfied: scipy in /home/aa/.local/lib/python3.11/site-packages (1.16.3)
+Collecting statsmodels
+  Downloading statsmodels-0.14.6-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (9.5 kB)
+Collecting scikit-learn
+  Downloading scikit_learn-1.8.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (11 kB)
+Requirement already satisfied: matplotlib in /home/aa/.local/lib/python3.11/site-packages (3.10.8)
+Collecting seaborn
+  Downloading seaborn-0.13.2-py3-none-any.whl.metadata (5.4 kB)
+Collecting openpyxl
+  Downloading openpyxl-3.1.5-py2.py3-none-any.whl.metadata (2.5 kB)
+Collecting pingouin
+  Downloading pingouin-0.6.1-py3-none-any.whl.metadata (19 kB)
+Collecting lifelines
+  Downloading lifelines-0.30.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting requests
+  Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)
+Collecting PyQt6-sip<14,>=13.8 (from PyQt6)
+  Downloading pyqt6_sip-13.11.1-cp311-cp311-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (495 bytes)
+Collecting PyQt6-Qt6<6.12.0,>=6.11.0 (from PyQt6)
+  Downloading pyqt6_qt6-6.11.0-py3-none-manylinux_2_34_x86_64.whl.metadata (535 bytes)
+Requirement already satisfied: python-dateutil>=2.8.2 in /home/aa/.local/lib/python3.11/site-packages (from pandas) (2.9.0.post0)
+Requirement already satisfied: pytz>=2020.1 in /home/aa/.local/lib/python3.11/site-packages (from pandas) (2025.2)
+Requirement already satisfied: tzdata>=2022.7 in /home/aa/.local/lib/python3.11/site-packages (from pandas) (2025.3)
+Collecting patsy>=0.5.6 (from statsmodels)
+  Downloading patsy-1.0.2-py2.py3-none-any.whl.metadata (3.6 kB)
+Requirement already satisfied: packaging>=21.3 in /home/aa/.local/lib/python3.11/site-packages (from statsmodels) (25.0)
+Collecting joblib>=1.3.0 (from scikit-learn)
+  Downloading joblib-1.5.3-py3-none-any.whl.metadata (5.5 kB)
+Collecting threadpoolctl>=3.2.0 (from scikit-learn)
+  Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)
+Requirement already satisfied: contourpy>=1.0.1 in /home/aa/.local/lib/python3.11/site-packages (from matplotlib) (1.3.3)
+Requirement already satisfied: cycler>=0.10 in /home/aa/.local/lib/python3.11/site-packages (from matplotlib) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in /home/aa/.local/lib/python3.11/site-packages (from matplotlib) (4.61.1)
+Requirement already satisfied: kiwisolver>=1.3.1 in /home/aa/.local/lib/python3.11/site-packages (from matplotlib) (1.4.9)
+Collecting pillow>=8 (from matplotlib)
+  Downloading pillow-12.2.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+Requirement already satisfied: pyparsing>=3 in /home/aa/.local/lib/python3.11/site-packages (from matplotlib) (3.3.1)
+Collecting et-xmlfile (from openpyxl)
+  Downloading et_xmlfile-2.0.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting pandas_flavor (from pingouin)
+  Downloading pandas_flavor-0.8.1-py3-none-any.whl.metadata (6.6 kB)
+Collecting tabulate (from pingouin)
+  Downloading tabulate-0.10.0-py3-none-any.whl.metadata (40 kB)
+Collecting autograd>=1.5 (from lifelines)
+  Downloading autograd-1.8.0-py3-none-any.whl.metadata (7.5 kB)
+Collecting autograd-gamma>=0.3 (from lifelines)
+  Downloading autograd-gamma-0.5.0.tar.gz (4.0 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting formulaic>=0.2.2 (from lifelines)
+  Downloading formulaic-1.2.1-py3-none-any.whl.metadata (7.0 kB)
+Collecting charset_normalizer<4,>=2 (from requests)
+  Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+Collecting idna<4,>=2.5 (from requests)
+  Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+Collecting urllib3<3,>=1.26 (from requests)
+  Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+Collecting certifi>=2023.5.7 (from requests)
+  Downloading certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+Collecting interface-meta>=1.2.0 (from formulaic>=0.2.2->lifelines)
+  Downloading interface_meta-1.3.0-py3-none-any.whl.metadata (6.7 kB)
+Collecting narwhals>=1.17 (from formulaic>=0.2.2->lifelines)
+  Downloading narwhals-2.19.0-py3-none-any.whl.metadata (14 kB)
+Requirement already satisfied: typing-extensions>=4.2.0 in /home/aa/.local/lib/python3.11/site-packages (from formulaic>=0.2.2->lifelines) (4.15.0)
+Collecting wrapt>=1.0 (from formulaic>=0.2.2->lifelines)
+  Downloading wrapt-2.1.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (7.4 kB)
+Requirement already satisfied: six>=1.5 in /home/aa/.local/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pandas) (1.17.0)
+Collecting xarray (from pandas_flavor->pingouin)
+  Downloading xarray-2026.2.0-py3-none-any.whl.metadata (12 kB)
+Downloading pyqt6-6.11.0-cp310-abi3-manylinux_2_34_x86_64.whl (8.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.3/8.3 MB 19.7 MB/s  0:00:00
+Downloading pyqt6_qt6-6.11.0-py3-none-manylinux_2_34_x86_64.whl (85.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 85.8/85.8 MB 20.9 MB/s  0:00:04
+Downloading pyqt6_sip-13.11.1-cp311-cp311-manylinux1_x86_64.manylinux_2_5_x86_64.whl (289 kB)
+Downloading numpy-2.4.4-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 18.6 MB/s  0:00:00
+Downloading statsmodels-0.14.6-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (10.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.4/10.4 MB 19.9 MB/s  0:00:00
+Downloading scikit_learn-1.8.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (9.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.1/9.1 MB 20.3 MB/s  0:00:00
+Downloading seaborn-0.13.2-py3-none-any.whl (294 kB)
+Downloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
+Downloading pingouin-0.6.1-py3-none-any.whl (203 kB)
+Downloading lifelines-0.30.3-py3-none-any.whl (409 kB)
+Downloading requests-2.33.1-py3-none-any.whl (64 kB)
+Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+Downloading idna-3.11-py3-none-any.whl (71 kB)
+Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+Downloading autograd-1.8.0-py3-none-any.whl (51 kB)
+Downloading certifi-2026.2.25-py3-none-any.whl (153 kB)
+Downloading formulaic-1.2.1-py3-none-any.whl (117 kB)
+Downloading interface_meta-1.3.0-py3-none-any.whl (14 kB)
+Downloading joblib-1.5.3-py3-none-any.whl (309 kB)
+Downloading narwhals-2.19.0-py3-none-any.whl (446 kB)
+Downloading patsy-1.0.2-py2.py3-none-any.whl (233 kB)
+Downloading pillow-12.2.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 19.7 MB/s  0:00:00
+Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)
+Downloading wrapt-2.1.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (114 kB)
+Downloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
+Downloading pandas_flavor-0.8.1-py3-none-any.whl (8.5 kB)
+Downloading tabulate-0.10.0-py3-none-any.whl (39 kB)
+Downloading xarray-2026.2.0-py3-none-any.whl (1.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 19.7 MB/s  0:00:00
+Building wheels for collected packages: autograd-gamma
+  Building wheel for autograd-gamma (pyproject.toml): started
+  Building wheel for autograd-gamma (pyproject.toml): finished with status 'done'
+  Created wheel for autograd-gamma: filename=autograd_gamma-0.5.0-py3-none-any.whl size=4119 sha256=bca842bbafba8278066311aa020e6abf4a74e54fe0cc677bbe77880f2c7b0084
+  Stored in directory: /home/aa/.cache/pip/wheels/8b/67/f4/2caaae2146198dcb824f31a303833b07b14a5ec863fb3acd7b
+Successfully built autograd-gamma
+Installing collected packages: PyQt6-Qt6, wrapt, urllib3, threadpoolctl, tabulate, PyQt6-sip, pillow, numpy, narwhals, joblib, interface-meta, idna, et-xmlfile, charset_normalizer, certifi, requests, PyQt6, patsy, openpyxl, autograd, xarray, statsmodels, scikit-learn, formulaic, autograd-gamma, seaborn, pandas_flavor, lifelines, pingouin
+
+Successfully installed PyQt6-6.11.0 PyQt6-Qt6-6.11.0 PyQt6-sip-13.11.1 autograd-1.8.0 autograd-gamma-0.5.0 certifi-2026.2.25 charset_normalizer-3.4.7 et-xmlfile-2.0.0 formulaic-1.2.1 idna-3.11 interface-meta-1.3.0 joblib-1.5.3 lifelines-0.30.3 narwhals-2.19.0 numpy-2.4.4 openpyxl-3.1.5 pandas_flavor-0.8.1 patsy-1.0.2 pillow-12.2.0 pingouin-0.6.1 requests-2.33.1 scikit-learn-1.8.0 seaborn-0.13.2 statsmodels-0.14.6 tabulate-0.10.0 threadpoolctl-3.6.0 urllib3-2.6.3 wrapt-2.1.2 xarray-2026.2.0
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+gradio 6.2.0 requires huggingface-hub<2.0,>=0.33.5, which is not installed.
+gradio-client 2.0.2 requires huggingface-hub<2.0,>=0.19.3, which is not installed.
+
+
