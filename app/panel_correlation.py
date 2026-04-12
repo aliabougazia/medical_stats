@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider
+from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
 from . import statistics as S
 
 
@@ -139,6 +139,7 @@ class CorrelationPanel(QWidget):
 
     # ── Bivariate analysis ────────────────────────────────────────────────────
 
+    @safe_run
     def _run_bivar(self):
         df = data_store.df
         if df is None:
@@ -190,6 +191,7 @@ class CorrelationPanel(QWidget):
 
     # ── Correlation matrix ────────────────────────────────────────────────────
 
+    @safe_run
     def _run_matrix(self):
         df = data_store.df
         if df is None:

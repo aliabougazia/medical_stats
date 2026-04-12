@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store, format_ci
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider
+from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
 from .statistics import diagnostic_metrics, roc_analysis
 
 
@@ -182,6 +182,7 @@ class DiagnosticPanel(QWidget):
 
     # ── Manual 2×2 analysis ───────────────────────────────────────────────────
 
+    @safe_run
     def _run_manual(self):
         tp = self._tp.value(); fp = self._fp.value()
         fn = self._fn.value(); tn = self._tn.value()
@@ -237,6 +238,7 @@ class DiagnosticPanel(QWidget):
 
     # ── ROC analysis ──────────────────────────────────────────────────────────
 
+    @safe_run
     def _run_roc(self):
         df = data_store.df
         if df is None:

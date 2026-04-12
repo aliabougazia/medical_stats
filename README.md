@@ -2,6 +2,10 @@
 
 **Advanced Medical Research Statistical Analysis**
 
+> **Disclaimer:** This application was built by the author for personal research use. Others are welcome to use it freely. However, the author provides this software *as-is*, without warranty of any kind, and **cannot accept any liability** for decisions made, clinical or otherwise, based on results produced by this application. All statistical outputs should be interpreted by a qualified professional. This tool is not a substitute for expert statistical or medical advice.
+
+---
+
 MedStat Pro is a desktop application for medical researchers, clinicians, and epidemiologists. It provides a full suite of descriptive, inferential, diagnostic, regression, reliability, and survival statistics — all computed locally with Python scientific libraries. An optional LM Studio integration lets you chat with a local LLM for guidance on test selection and result interpretation, while every statistical calculation remains fully independent of AI.
 
 ---

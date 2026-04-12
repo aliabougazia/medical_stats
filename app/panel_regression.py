@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider
+from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
 from . import statistics as S
 
 
@@ -123,6 +123,7 @@ class RegressionPanel(QWidget):
 
     # ── Run ───────────────────────────────────────────────────────────────────
 
+    @safe_run
     def _run(self):
         df = data_store.df
         if df is None:

@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider
+from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
 from . import statistics as S
 
 
@@ -289,6 +289,7 @@ class TestsPanel(QWidget):
 
     # ── Run dispatch ──────────────────────────────────────────────────────────
 
+    @safe_run
     def _run(self):
         test = self._test_combo.currentText()
         if test.startswith("---"):

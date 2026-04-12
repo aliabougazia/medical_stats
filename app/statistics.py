@@ -22,7 +22,11 @@ def _arr(x) -> np.ndarray:
     """Convert Series/list to clean float array (dropping NaN)."""
     if hasattr(x, "dropna"):
         x = x.dropna()
-    a = np.asarray(x, dtype=float)
+    try:
+        a = np.asarray(x, dtype=float)
+    except (ValueError, TypeError) as exc:
+        col_name = getattr(x, "name", "column")
+        raise ValueError(f"Column '{col_name}' contains non-numeric values and cannot be used in this analysis.") from exc
     return a[~np.isnan(a)]
 
 
@@ -547,7 +551,10 @@ def _align(x_df: pd.DataFrame, y: pd.Series) -> tuple[pd.DataFrame, np.ndarray]:
 
 def simple_linear_regression(x: pd.Series, y: pd.Series) -> dict:
     import statsmodels.api as sm
-    xv, yv = _arr(x), _arr(y)
+    try:
+        xv, yv = _arr(x), _arr(y)
+    except ValueError as exc:
+        return {"error": str(exc)}
     n = min(len(xv), len(yv))
     xv, yv = xv[:n], yv[:n]
     mask = ~(np.isnan(xv) | np.isnan(yv))
@@ -558,15 +565,15 @@ def simple_linear_regression(x: pd.Series, y: pd.Series) -> dict:
     X = sm.add_constant(xv)
     m = sm.OLS(yv, X).fit()
     r, rp = stats.pearsonr(xv, yv)
-    ci_df = m.conf_int()
+    ci_arr = np.asarray(m.conf_int())   # always a plain ndarray
     params_tbl = pd.DataFrame({
         "": ["Intercept", "Slope"],
         "Coeff": [m.params[0], m.params[1]],
         "SE":    [m.bse[0], m.bse[1]],
         "t":     [m.tvalues[0], m.tvalues[1]],
         "p":     [m.pvalues[0], m.pvalues[1]],
-        "CI low":  [ci_df.iloc[0, 0], ci_df.iloc[1, 0]],
-        "CI high": [ci_df.iloc[0, 1], ci_df.iloc[1, 1]],
+        "CI low":  [ci_arr[0, 0], ci_arr[1, 0]],
+        "CI high": [ci_arr[0, 1], ci_arr[1, 1]],
     })
     return {
         "test": "Simple Linear Regression",

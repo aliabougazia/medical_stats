@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider
+from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
 from . import statistics as S
 
 
@@ -186,6 +186,7 @@ class ReliabilityPanel(QWidget):
 
     # ── Run Kappa ─────────────────────────────────────────────────────────────
 
+    @safe_run
     def _run_kappa(self):
         df = data_store.df
         if df is None:
@@ -219,6 +220,7 @@ class ReliabilityPanel(QWidget):
 
     # ── Run ICC ───────────────────────────────────────────────────────────────
 
+    @safe_run
     def _run_icc(self):
         df = data_store.df
         if df is None:
@@ -252,6 +254,7 @@ class ReliabilityPanel(QWidget):
 
     # ── Run Bland-Altman ──────────────────────────────────────────────────────
 
+    @safe_run
     def _run_ba(self):
         df = data_store.df
         if df is None:
@@ -310,6 +313,7 @@ class ReliabilityPanel(QWidget):
 
     # ── Run Cronbach ──────────────────────────────────────────────────────────
 
+    @safe_run
     def _run_alpha(self):
         df = data_store.df
         if df is None:

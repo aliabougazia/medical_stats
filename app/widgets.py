@@ -10,7 +10,7 @@ import pandas as pd
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QTableWidgetItem, QAbstractItemView, QFileDialog, QSizePolicy,
-    QHeaderView, QLabel, QFrame,
+    QHeaderView, QLabel, QFrame, QMessageBox,
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QFont, QClipboard, QGuiApplication
@@ -31,6 +31,35 @@ _MUTED     = "#94a3b8"
 _SUCCESS   = "#22c55e"
 _WARNING   = "#f59e0b"
 _ERROR     = "#ef4444"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# safe_run – decorator that catches slot exceptions and shows a dialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+import functools
+import traceback as _traceback
+
+def safe_run(method):
+    """Decorator for panel _run* slots: catches any exception and shows an
+    error dialog instead of letting the app crash."""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except Exception as exc:
+            detail = _traceback.format_exc()
+            brief  = str(exc) if str(exc) else type(exc).__name__
+            if hasattr(self, "status_message"):
+                self.status_message.emit(f"Error: {brief}")
+            box = QMessageBox(self)
+            box.setWindowTitle("Analysis Error")
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setText(brief)
+            box.setDetailedText(detail)
+            box.setStandardButtons(QMessageBox.StandardButton.Ok)
+            box.exec()
+    return wrapper
 
 
 # ─────────────────────────────────────────────────────────────────────────────
