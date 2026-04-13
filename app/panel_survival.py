@@ -19,7 +19,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from . import statistics as S
 
 
@@ -70,7 +73,17 @@ class SurvivalPanel(QWidget):
 
         btn = QPushButton("▶  Run Kaplan-Meier"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_km)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        gc_for_insp = self._km_group
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": "Kaplan-Meier",
+            "outcome": self._km_time.currentText(),
+            "extra": [self._km_event.currentText()],
+            "group": (gc_for_insp.currentText()
+                      if not gc_for_insp.currentText().startswith("(None") else ""),
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right  = QWidget()
         rlay   = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
@@ -112,7 +125,15 @@ class SurvivalPanel(QWidget):
 
         btn = QPushButton("▶  Fit Cox Model"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_cox)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": "Cox Regression",
+            "outcome": self._cox_time.currentText(),
+            "extra": ([self._cox_event.currentText()] +
+                      [it.text() for it in self._cox_cov_list.selectedItems()]),
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right   = QWidget()
         rlay    = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
@@ -136,12 +157,16 @@ class SurvivalPanel(QWidget):
         for cb in (self._km_time, self._km_event,
                    self._cox_time, self._cox_event):
             cb.clear(); cb.addItems(cols)
-        # Group combo keeps "(None)" option
         self._km_group.clear()
-        self._km_group.addItem("(None – overall KM)")
+        self._km_group.addItem("(None \u2013 overall KM)")
         self._km_group.addItems(cols)
         self._cox_cov_list.clear()
         self._cox_cov_list.addItems(cols)
+
+    def _open_inspect(self, ctx: dict) -> None:
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show(); win.raise_(); win.activateWindow()
 
     # ── Run KM ────────────────────────────────────────────────────────────────
 

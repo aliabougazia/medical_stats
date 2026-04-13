@@ -16,7 +16,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from .statistics import quantitative_stats, categorical_stats, normality_tests
 
 
@@ -75,7 +78,14 @@ class DescriptivePanel(QWidget):
         run_btn.setMinimumHeight(36)
         run_btn.clicked.connect(self._run)
         llay.addWidget(run_btn)
-        llay.addStretch()
+        inspect_btn = QPushButton("\U0001f50d  Inspect Data")
+        inspect_btn.setFixedHeight(28)
+        inspect_btn.setToolTip("Show which columns are used, colour-coded in the raw data.")
+        inspect_btn.clicked.connect(lambda: self._open_inspect({
+            "test_name": "Descriptive Statistics",
+            "extra": [item.text() for item in self._col_list.selectedItems()],
+        }))
+        llay.addWidget(inspect_btn)        llay.addStretch()
         left.setWidget(lw)
 
         # ── Right: tabs (results + plots) ─────────────────────────────────────
@@ -127,6 +137,11 @@ class DescriptivePanel(QWidget):
         self._col_list.clear()
         if df is not None:
             self._col_list.addItems(list(df.columns))
+
+    def _open_inspect(self, ctx: dict) -> None:
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show(); win.raise_(); win.activateWindow()
 
     # ── Analysis ──────────────────────────────────────────────────────────────
 

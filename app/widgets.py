@@ -662,3 +662,283 @@ def log_error(brief: str, detail: str) -> None:
 def log_activity(message: str, level: str = "info") -> None:
     """Append an activity message to the debug window activity log."""
     get_debug_window().activity(message, level)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DataHighlightWindow – shows which cells/columns/rows are used in a test
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MAX_HIGHLIGHT_ROWS = 500
+
+# Role → header foreground colour and cell background colour
+_ROLE_HDR_FG = {
+    "outcome": "#38bdf8",   # sky blue
+    "group":   "#c084fc",   # purple
+    "factor":  "#4ade80",   # green
+    "extra":   "#fbbf24",   # amber
+}
+_ROLE_CELL_BG = {
+    "outcome": "#0c2d48",
+    "group":   "#1e0f3d",
+    "factor":  "#0f2d1a",
+    "extra":   "#2d1f04",
+}
+# Per-group-value cell background + foreground (cycles)
+_GRP_CELL_BG = ["#1a2e4a", "#2a1a4a", "#0f2d1a", "#2d200a", "#2d0a0a", "#042d2d",
+                "#1a1a2e", "#2d1a0f", "#0a2d2d", "#2a0a1a"]
+_GRP_CELL_FG = ["#38bdf8", "#c084fc", "#4ade80", "#fbbf24", "#f87171", "#22d3ee",
+                "#a78bfa", "#fb923c", "#34d399", "#f472b6"]
+
+
+def _to_str_list(v) -> list[str]:
+    """Normalise a context value to a flat list of non-empty strings."""
+    if v is None:
+        return []
+    if isinstance(v, str):
+        return [v] if v else []
+    return [x for x in v if x]
+
+
+class DataHighlightWindow(QDialog):
+    """Non-modal window displaying the DataFrame with colour-coded roles.
+
+    Call ``show_highlight(df, context)`` to update it.
+
+    ``context`` keys (all optional):
+        test_name   str          – shown in title
+        outcome     str|list     – outcome / dependent variable column(s)
+        group       str          – group column
+        keep_groups list[str]    – subset of group values actually used
+        factors     list[str]    – factor columns (ANOVA etc.)
+        extra       list[str]    – other used columns
+    """
+
+    def __init__(self):
+        super().__init__(None, Qt.WindowType.Window)
+        self.setWindowTitle("MedStat Pro – Data Inspector")
+        self.resize(1100, 680)
+        self.setStyleSheet(
+            f"QDialog {{ background:{_BG_DARK}; color:{_TEXT}; }}"
+            f"QTableWidget {{ background:{_BG_MED}; color:{_TEXT};"
+            f"  gridline-color:{_BG_LIGHT}; border:1px solid {_BG_LIGHT};"
+            f"  border-radius:4px; font-size:8pt; }}"
+            f"QHeaderView::section {{ background:{_BG_LIGHT}; color:{_TEXT};"
+            f"  padding:3px 6px; border:none; border-right:1px solid {_BG_DARK};"
+            f"  font-size:8pt; }}"
+            f"QPushButton {{ background:{_BG_LIGHT}; color:{_TEXT}; border:none;"
+            f"  border-radius:4px; padding:5px 14px; font-size:9pt; }}"
+            f"QPushButton:hover {{ background:{_ACCENT}; color:#fff; }}"
+            f"QLabel {{ color:{_MUTED}; font-size:9pt; background:transparent; }}"
+        )
+        self._build_ui()
+
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(6)
+
+        # ── header row ────────────────────────────────────────────────────────
+        hdr = QHBoxLayout()
+        self._title_lbl = QLabel("Data Inspector")
+        self._title_lbl.setStyleSheet(
+            f"color:{_TEXT}; font-size:11pt; font-weight:700;")
+        hdr.addWidget(self._title_lbl)
+        hdr.addStretch()
+        self._info_lbl = QLabel("")
+        hdr.addWidget(self._info_lbl)
+        close_btn = QPushButton("✕  Close")
+        close_btn.setFixedHeight(30)
+        close_btn.clicked.connect(self.hide)
+        hdr.addWidget(close_btn)
+        root.addLayout(hdr)
+
+        # ── legend ────────────────────────────────────────────────────────────
+        self._legend_lbl = QLabel("")
+        self._legend_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self._legend_lbl.setWordWrap(True)
+        root.addWidget(self._legend_lbl)
+
+        # ── table ─────────────────────────────────────────────────────────────
+        self._table = QTableWidget()
+        self._table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectItems)
+        self._table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection)
+        self._table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Interactive)
+        self._table.horizontalHeader().setDefaultSectionSize(110)
+        self._table.verticalHeader().setDefaultSectionSize(22)
+        self._table.setAlternatingRowColors(False)
+        root.addWidget(self._table, stretch=1)
+
+    # ── public API ────────────────────────────────────────────────────────────
+
+    def show_highlight(self, df: "pd.DataFrame | None", context: dict) -> None:
+        """Populate / refresh the table according to *context*."""
+        test_name = context.get("test_name", "")
+        self._title_lbl.setText(
+            f"Data Inspector  —  {test_name}" if test_name else "Data Inspector")
+
+        if df is None or df.empty:
+            self._table.clear()
+            self._table.setRowCount(0)
+            self._table.setColumnCount(0)
+            self._legend_lbl.setText("<i>No data loaded.</i>")
+            self._info_lbl.setText("")
+            return
+
+        outcome_cols = _to_str_list(context.get("outcome"))
+        group_col    = context.get("group") or ""
+        keep_groups  = context.get("keep_groups")    # None = all groups
+        factor_cols  = _to_str_list(context.get("factors"))
+        extra_cols   = _to_str_list(context.get("extra"))
+
+        all_cols = list(df.columns)
+
+        # ── which rows are "included" ─────────────────────────────────────────
+        if group_col and group_col in df.columns and keep_groups is not None:
+            norm = df[group_col].astype(str).str.strip()
+            included_mask = norm.isin(keep_groups).values
+        else:
+            included_mask = None   # all rows included
+
+        # ── group-value → palette index ───────────────────────────────────────
+        group_val_idx: dict[str, int] = {}
+        if group_col and group_col in df.columns:
+            vals = sorted(
+                df[group_col].dropna().astype(str).str.strip().unique())
+            group_val_idx = {v: i for i, v in enumerate(vals)}
+
+        # ── col role map ──────────────────────────────────────────────────────
+        col_role: dict[str, str] = {}
+        for c in outcome_cols:
+            if c in all_cols:
+                col_role[c] = "outcome"
+        if group_col in all_cols:
+            col_role[group_col] = "group"
+        for c in factor_cols:
+            if c in all_cols:
+                col_role[c] = "factor"
+        for c in extra_cols:
+            if c in all_cols:
+                col_role.setdefault(c, "extra")
+
+        # ── truncate ──────────────────────────────────────────────────────────
+        display_df = df.iloc[:_MAX_HIGHLIGHT_ROWS]
+        truncated  = len(df) > _MAX_HIGHLIGHT_ROWS
+        n_included = int(included_mask.sum()) if included_mask is not None else len(df)
+        info = (f"Showing first {_MAX_HIGHLIGHT_ROWS} of {len(df)} rows" if truncated
+                else f"{len(df)} rows")
+        if included_mask is not None and n_included < len(df):
+            info += f"  |  {n_included} included  ·  {len(df)-n_included} excluded (dimmed)"
+        self._info_lbl.setText(info)
+
+        # ── populate table ────────────────────────────────────────────────────
+        nc = len(all_cols)
+        nr = len(display_df)
+        self._table.setUpdatesEnabled(False)
+        self._table.clearContents()
+        self._table.setColumnCount(nc)
+        self._table.setRowCount(nr)
+
+        # Column headers – bold + coloured foreground for used cols
+        for ci, col in enumerate(all_cols):
+            role = col_role.get(col)
+            label = col
+            if role:
+                label = f"▸ {col}"
+            item = QTableWidgetItem(label)
+            if role:
+                fg = _ROLE_HDR_FG.get(role, _TEXT)
+                item.setForeground(QColor(fg))
+                item.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            else:
+                item.setForeground(QColor(_MUTED))
+            self._table.setHorizontalHeaderItem(ci, item)
+
+        # Cells
+        norm_grp = (df[group_col].astype(str).str.strip()
+                    if group_col and group_col in df.columns else None)
+
+        for ri in range(nr):
+            row = display_df.iloc[ri]
+            row_included = (bool(included_mask[ri])
+                            if included_mask is not None else True)
+            grp_val = norm_grp.iloc[ri] if norm_grp is not None else None
+
+            for ci, col in enumerate(all_cols):
+                val  = row[col]
+                text = "" if pd.isna(val) else str(val)
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                if not row_included:
+                    # Dim excluded rows
+                    item.setForeground(QColor("#3d4f63"))
+                    item.setBackground(QColor("#111827"))
+                elif col == group_col and grp_val is not None:
+                    idx_g = group_val_idx.get(grp_val, 0)
+                    item.setBackground(
+                        QColor(_GRP_CELL_BG[idx_g % len(_GRP_CELL_BG)]))
+                    item.setForeground(
+                        QColor(_GRP_CELL_FG[idx_g % len(_GRP_CELL_FG)]))
+                elif col in col_role:
+                    role = col_role[col]
+                    item.setBackground(
+                        QColor(_ROLE_CELL_BG.get(role, _BG_MED)))
+                    item.setForeground(QColor("#e2e8f0"))
+                else:
+                    item.setBackground(QColor(_BG_MED))
+                    item.setForeground(QColor("#475569"))
+
+                self._table.setItem(ri, ci, item)
+
+        self._table.setUpdatesEnabled(True)
+
+        # ── legend ────────────────────────────────────────────────────────────
+        parts = []
+
+        def _badge(color: str, text: str) -> str:
+            return (f"<span style='background:{color}33; color:{color};"
+                    f" border:1px solid {color}55;"
+                    f" padding:1px 7px; border-radius:3px;'>{text}</span>")
+
+        if outcome_cols:
+            parts.append(_badge(_ROLE_HDR_FG["outcome"],
+                                 "Outcome: " + ", ".join(outcome_cols)))
+        if group_col:
+            parts.append(_badge(_ROLE_HDR_FG["group"], f"Group: {group_col}"))
+            # Per-value sub-badges
+            for gv, gi in sorted(group_val_idx.items(), key=lambda x: x[1]):
+                fg = _GRP_CELL_FG[gi % len(_GRP_CELL_FG)]
+                excluded = keep_groups is not None and gv not in keep_groups
+                style = (f"background:{_GRP_CELL_BG[gi%len(_GRP_CELL_BG)]};"
+                         f" color:{fg}; padding:1px 5px; border-radius:3px;"
+                         + (" text-decoration:line-through; opacity:0.5;" if excluded else ""))
+                parts.append(f"<span style='{style}'>{gv}"
+                              + ("  ✗" if excluded else "") + "</span>")
+        for i, fc in enumerate(factor_cols):
+            parts.append(_badge(_ROLE_HDR_FG["factor"], f"Factor: {fc}"))
+        if extra_cols:
+            parts.append(_badge(_ROLE_HDR_FG["extra"],
+                                 "Used: " + ", ".join(extra_cols)))
+        parts.append(f"<span style='color:#475569;'>◻ Unused</span>")
+        if included_mask is not None and not all(included_mask):
+            parts.append(f"<span style='color:#3d4f63;'>◻ Excluded rows (dimmed)</span>")
+
+        self._legend_lbl.setText("  &nbsp;  ".join(parts))
+
+
+# ── module-level singleton ────────────────────────────────────────────────────
+
+_data_highlight_window_instance: DataHighlightWindow | None = None
+
+
+def get_data_highlight_window() -> DataHighlightWindow:
+    """Return the application-wide DataHighlightWindow, creating it on first call."""
+    global _data_highlight_window_instance
+    if _data_highlight_window_instance is None:
+        _data_highlight_window_instance = DataHighlightWindow()
+    return _data_highlight_window_instance

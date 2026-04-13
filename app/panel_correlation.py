@@ -19,7 +19,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from . import statistics as S
 
 
@@ -71,7 +74,13 @@ class CorrelationPanel(QWidget):
 
         btn = QPushButton("▶  Compute Correlation"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_bivar)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": f"Bivariate Correlation ({self._bv_method.currentText()})",
+            "extra": [self._bv_x.currentText(), self._bv_y.currentText()],
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right = QWidget(); rlay = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
         rtabs = QTabWidget()
@@ -111,7 +120,13 @@ class CorrelationPanel(QWidget):
 
         btn = QPushButton("▶  Compute Matrix"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_matrix)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": f"Correlation Matrix ({self._mat_method.currentText()})",
+            "extra": [it.text() for it in self._mat_list.selectedItems()],
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right = QWidget(); rlay = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
         rtabs = QTabWidget()
@@ -136,6 +151,11 @@ class CorrelationPanel(QWidget):
         for cb in (self._bv_x, self._bv_y):
             cb.clear(); cb.addItems(cols)
         self._mat_list.clear(); self._mat_list.addItems(cols)
+
+    def _open_inspect(self, ctx: dict) -> None:
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show(); win.raise_(); win.activateWindow()
 
     # ── Bivariate analysis ────────────────────────────────────────────────────
 

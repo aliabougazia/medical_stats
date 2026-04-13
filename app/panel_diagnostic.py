@@ -14,7 +14,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store, format_ci
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from .statistics import diagnostic_metrics, roc_analysis
 
 
@@ -154,8 +157,13 @@ class DiagnosticPanel(QWidget):
         run_fd_btn = QPushButton("▶  Build Table & Calculate")
         run_fd_btn.setObjectName("primary"); run_fd_btn.setMinimumHeight(36)
         run_fd_btn.clicked.connect(self._run_from_data)
-        sd_lay.addWidget(run_fd_btn)
-        sd_lay.addStretch()
+        sd_lay.addWidget(run_fd_btn)        insp_fd = QPushButton("\U0001f50d  Inspect Data"); insp_fd.setFixedHeight(28)
+        insp_fd.clicked.connect(lambda: self._open_inspect({
+            "test_name": "2\u00d72 From Data",
+            "extra": [self._fd_test_col.currentText(),
+                      self._fd_ref_col.currentText()],
+        }))
+        sd_lay.addWidget(insp_fd)        sd_lay.addStretch()
         left_tabs.addTab(sub_data, "  📊  From Data  ")
 
         # Connect column combos \u2192 repopulate value lists
@@ -217,8 +225,13 @@ class DiagnosticPanel(QWidget):
         roc_run = QPushButton("▶  Compute ROC Curve")
         roc_run.setObjectName("primary"); roc_run.setMinimumHeight(36)
         roc_run.clicked.connect(self._run_roc)
-        llay.addWidget(roc_run)
-        llay.addStretch()
+        llay.addWidget(roc_run)        insp_roc = QPushButton("\U0001f50d  Inspect Data"); insp_roc.setFixedHeight(28)
+        insp_roc.clicked.connect(lambda: self._open_inspect({
+            "test_name": "ROC Curve",
+            "outcome": self._roc_score_col.currentText(),
+            "group": self._roc_label_col.currentText(),
+        }))
+        llay.addWidget(insp_roc)        llay.addStretch()
         left.setWidget(lw)
 
         # Right: tabs
@@ -248,6 +261,11 @@ class DiagnosticPanel(QWidget):
         self._refresh_class_combos()
         self._refresh_fd_values(self._fd_test_col, self._fd_test_pos)
         self._refresh_fd_values(self._fd_ref_col,  self._fd_ref_pos)
+
+    def _open_inspect(self, ctx: dict) -> None:
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show(); win.raise_(); win.activateWindow()
 
     def _refresh_fd_values(self, col_combo: "QComboBox", val_list: "QListWidget"):
         """Populate a value list with the unique values of a column combo's selection."""

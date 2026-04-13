@@ -31,7 +31,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from . import statistics as S
 
 
@@ -112,6 +115,17 @@ class TestsPanel(QWidget):
         rlay.setContentsMargins(8, 0, 0, 0)
         rlay.setSpacing(6)
 
+        top_row = QHBoxLayout()
+        inspect_btn = QPushButton("🔍  Inspect Data")
+        inspect_btn.setFixedHeight(28)
+        inspect_btn.setToolTip(
+            "Open a colour-coded view of the raw data showing which "
+            "columns and rows are used by the current test.")
+        inspect_btn.clicked.connect(self._open_inspect_window)
+        top_row.addStretch()
+        top_row.addWidget(inspect_btn)
+        rlay.addLayout(top_row)
+
         result_tabs = QTabWidget()
         self._result_table = ResultsTable()
         result_tabs.addTab(self._result_table, "📋  Results")
@@ -135,10 +149,45 @@ class TestsPanel(QWidget):
 
     def _make_two_group(self) -> QWidget:
         w  = QWidget()
-        fl = QFormLayout(w)
-        self._tg_outcome = self._col_combo(); fl.addRow("Outcome (numeric):", self._tg_outcome)
-        self._tg_group   = self._col_combo(); fl.addRow("Group column (2 groups):", self._tg_group)
+        fl = QVBoxLayout(w)
+        fl.setContentsMargins(0, 0, 0, 0)
+        fl.setSpacing(4)
+
+        form = QFormLayout()
+        self._tg_outcome = self._col_combo(); form.addRow("Outcome (numeric):", self._tg_outcome)
+        self._tg_group   = self._col_combo()
+        self._tg_group.currentTextChanged.connect(self._refresh_tg_groups)
+        form.addRow("Group column:", self._tg_group)
+        fl.addLayout(form)
+
+        self._tg_group_hint = QLabel("Select exactly 2 groups (Ctrl+click):")
+        self._tg_group_hint.setStyleSheet("font-size:8pt; color:#94a3b8;")
+        self._tg_group_hint.setVisible(False)
+        fl.addWidget(self._tg_group_hint)
+
+        self._tg_group_list = QListWidget()
+        self._tg_group_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self._tg_group_list.setMaximumHeight(100)
+        self._tg_group_list.setVisible(False)
+        fl.addWidget(self._tg_group_list)
         return w
+
+    def _refresh_tg_groups(self, col_name: str = "") -> None:
+        """Populate _tg_group_list with unique values of the chosen group column."""
+        df = data_store.df
+        if df is None or col_name not in df.columns:
+            self._tg_group_list.setVisible(False)
+            self._tg_group_hint.setVisible(False)
+            return
+        vals = sorted(df[col_name].dropna().astype(str).str.strip().unique())
+        vals = [v for v in vals if v]
+        self._tg_group_list.clear()
+        self._tg_group_list.addItems(vals)
+        visible = len(vals) > 2
+        self._tg_group_list.setVisible(visible)
+        self._tg_group_hint.setVisible(visible)
+        if not visible:
+            self._tg_group_list.selectAll()
 
     def _make_mw(self) -> QWidget:
         """Dedicated config widget for Mann-Whitney U Test."""
@@ -332,6 +381,78 @@ class TestsPanel(QWidget):
         self._cfg_widgets[key] = w
         self._cfg_stack.addWidget(w)
 
+    def _open_inspect_window(self):
+        ctx = self._get_highlight_context()
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show()
+        win.raise_()
+        win.activateWindow()
+
+    def _get_highlight_context(self) -> dict:
+        """Return a context dict describing which columns/groups the current test uses."""
+        test = self._test_combo.currentText()
+        ctx: dict = {"test_name": test}
+
+        def _sel_groups(lst_widget):
+            sel = [item.text() for item in lst_widget.selectedItems()]
+            return sel if sel else None
+
+        if test == "One-Sample T-Test":
+            ctx["outcome"] = self._os_col.currentText()
+
+        elif test == "Independent T-Test (Welch)":
+            ctx["outcome"] = self._tg_outcome.currentText()
+            ctx["group"]   = self._tg_group.currentText()
+            if self._tg_group_list.isVisible():
+                ctx["keep_groups"] = _sel_groups(self._tg_group_list)
+
+        elif test == "Paired T-Test":
+            ctx["extra"] = [
+                self._p_col1.currentText(), self._p_col2.currentText()]
+
+        elif test == "One-Way ANOVA":
+            ctx["outcome"] = self._ow_outcome.currentText()
+            ctx["group"]   = self._ow_group.currentText()
+
+        elif test == "Two-Way ANOVA":
+            ctx["outcome"]  = self._tw_outcome.currentText()
+            ctx["factors"]  = [
+                self._tw_f1.currentText(), self._tw_f2.currentText()]
+
+        elif test == "MANOVA":
+            ctx["extra"]  = [item.text()
+                             for item in self._manova_dvs.selectedItems()]
+            ctx["group"] = self._manova_factor.currentText()
+
+        elif test == "Mann-Whitney U Test":
+            ctx["outcome"] = self._mw_outcome.currentText()
+            ctx["group"]   = self._mw_group.currentText()
+            if self._mw_group_list.isVisible():
+                ctx["keep_groups"] = _sel_groups(self._mw_group_list)
+
+        elif test == "Wilcoxon Signed-Rank":
+            ctx["extra"] = [
+                self._wlc_col1.currentText(), self._wlc_col2.currentText()]
+
+        elif test == "Kruskal-Wallis":
+            ctx["outcome"] = self._kw_outcome.currentText()
+            ctx["group"]   = self._kw_group.currentText()
+
+        elif test == "Friedman Test":
+            ctx["extra"] = [item.text()
+                            for item in self._fried_list.selectedItems()]
+
+        elif test in ("Chi-Square / Fisher Exact", "McNemar's Test"):
+            c1 = (self._chi_c1 if test == "Chi-Square / Fisher Exact"
+                  else self._mcn_c1).currentText()
+            c2 = (self._chi_c2 if test == "Chi-Square / Fisher Exact"
+                  else self._mcn_c2).currentText()
+            ctx["extra"] = [c1, c2]
+
+        # Odds Ratio / Sample Size have no data columns – return empty context
+        return ctx
+
     def _on_test_changed(self, text: str):
         w = self._cfg_widgets.get(text, self._cfg_widgets["default"])
         self._cfg_stack.setCurrentWidget(w)
@@ -364,10 +485,13 @@ class TestsPanel(QWidget):
                    getattr(self, "_fried_list", None)):
             if lb is None: continue
             lb.clear(); lb.addItems(cols)
-        # Refresh MW group filter list to match new data
+        # Refresh group filter lists to match new data
         mw_grp = getattr(self, "_mw_group", None)
         if mw_grp:
             self._refresh_mw_groups(mw_grp.currentText())
+        tg_grp = getattr(self, "_tg_group", None)
+        if tg_grp:
+            self._refresh_tg_groups(tg_grp.currentText())
 
     # ── Run dispatch ──────────────────────────────────────────────────────────
 
@@ -385,7 +509,14 @@ class TestsPanel(QWidget):
 
         elif test == "Independent T-Test (Welch)":
             oc, gc = self._tg_outcome.currentText(), self._tg_group.currentText()
-            grps, names = self._split_groups(df, oc, gc)
+            selected_groups = None
+            if self._tg_group_list.isVisible():
+                selected_groups = [item.text() for item in self._tg_group_list.selectedItems()]
+                if len(selected_groups) != 2:
+                    self.status_message.emit(
+                        f"Select exactly 2 groups (Ctrl+click) — "
+                        f"{len(selected_groups)} selected."); return
+            grps, names = self._split_groups(df, oc, gc, keep_groups=selected_groups)
             if grps is None: return
             if len(grps) != 2:
                 self.status_message.emit(
@@ -394,7 +525,7 @@ class TestsPanel(QWidget):
             g1, g2 = grps; n1, n2 = names
             res = S.t_test_independent(pd.Series(g1), pd.Series(g2))
             res["group1_name"] = n1; res["group2_name"] = n2
-            self._show_generic(res); self._plot_two_group(df, oc, gc)
+            self._show_generic(res); self._plot_two_group(df, oc, gc, keep_groups=selected_groups)
 
         elif test == "Paired T-Test":
             c1, c2 = self._p_col1.currentText(), self._p_col2.currentText()

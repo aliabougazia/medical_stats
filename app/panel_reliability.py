@@ -21,7 +21,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from . import statistics as S
 
 
@@ -74,7 +77,13 @@ class ReliabilityPanel(QWidget):
         llay.addWidget(grp)
         btn = QPushButton("▶  Calculate Kappa"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_kappa)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": "Cohen's Kappa",
+            "extra": [self._kappa_r1.currentText(), self._kappa_r2.currentText()],
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right = QWidget(); rlay = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
         self._kappa_table = ResultsTable()
@@ -104,7 +113,13 @@ class ReliabilityPanel(QWidget):
         llay.addWidget(grp)
         btn = QPushButton("▶  Calculate ICC"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_icc)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": "ICC",
+            "extra": [it.text() for it in self._icc_list.selectedItems()],
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right = QWidget(); rlay = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
         self._icc_table = ResultsTable()
@@ -132,7 +147,13 @@ class ReliabilityPanel(QWidget):
         llay.addWidget(grp)
         btn = QPushButton("▶  Bland-Altman Analysis"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_ba)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": "Bland-Altman",
+            "extra": [self._ba_m1.currentText(), self._ba_m2.currentText()],
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right = QWidget(); rlay = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
         rtabs = QTabWidget()
@@ -165,7 +186,13 @@ class ReliabilityPanel(QWidget):
         llay.addWidget(grp)
         btn = QPushButton("▶  Calculate Cronbach's α"); btn.setObjectName("primary")
         btn.setMinimumHeight(34); btn.clicked.connect(self._run_alpha)
-        llay.addWidget(btn); llay.addStretch(); left.setWidget(lw)
+        llay.addWidget(btn)
+        insp = QPushButton("\U0001f50d  Inspect Data"); insp.setFixedHeight(28)
+        insp.clicked.connect(lambda: self._open_inspect({
+            "test_name": "Cronbach's Alpha",
+            "extra": [it.text() for it in self._alpha_list.selectedItems()],
+        }))
+        llay.addWidget(insp); llay.addStretch(); left.setWidget(lw)
 
         right = QWidget(); rlay = QVBoxLayout(right); rlay.setContentsMargins(8, 0, 0, 0)
         self._alpha_table = ResultsTable()
@@ -183,6 +210,11 @@ class ReliabilityPanel(QWidget):
             cb.clear(); cb.addItems(cols)
         for lb in (self._icc_list, self._alpha_list):
             lb.clear(); lb.addItems(cols)
+
+    def _open_inspect(self, ctx: dict) -> None:
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show(); win.raise_(); win.activateWindow()
 
     # ── Run Kappa ─────────────────────────────────────────────────────────────
 

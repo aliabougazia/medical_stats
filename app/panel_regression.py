@@ -16,7 +16,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from .core import data_store
-from .widgets import PlotWidget, ResultsTable, SectionHeader, Divider, safe_run
+from .widgets import (
+    PlotWidget, ResultsTable, SectionHeader, Divider, safe_run,
+    get_data_highlight_window,
+)
 from . import statistics as S
 
 
@@ -89,7 +92,18 @@ class RegressionPanel(QWidget):
         right = QWidget()
         rlay  = QVBoxLayout(right)
         rlay.setContentsMargins(8, 0, 0, 0)
-
+        top_row = QHBoxLayout()
+        inspect_btn = QPushButton("🔍  Inspect Data")
+        inspect_btn.setFixedHeight(28)
+        inspect_btn.setToolTip("Show outcome & predictor columns colour-coded in the raw data.")
+        inspect_btn.clicked.connect(lambda: self._open_inspect({
+            "test_name": self._type_combo.currentText(),
+            "outcome": self._outcome_combo.currentText(),
+            "extra": [it.text() for it in self._pred_list.selectedItems()],
+        }))
+        top_row.addStretch()
+        top_row.addWidget(inspect_btn)
+        rlay.addLayout(top_row)
         rtabs = QTabWidget()
         self._coef_table   = ResultsTable()
         self._model_table  = ResultsTable()
@@ -116,6 +130,11 @@ class RegressionPanel(QWidget):
         cols = list(df.columns) if df is not None else []
         self._outcome_combo.clear(); self._outcome_combo.addItems(cols)
         self._pred_list.clear(); self._pred_list.addItems(cols)
+
+    def _open_inspect(self, ctx: dict) -> None:
+        win = get_data_highlight_window()
+        win.show_highlight(data_store.df, ctx)
+        win.show(); win.raise_(); win.activateWindow()
 
     def _on_type_changed(self, text: str):
         multi = text != "Simple Linear Regression"
