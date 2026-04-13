@@ -85,7 +85,8 @@ class DescriptivePanel(QWidget):
             "test_name": "Descriptive Statistics",
             "extra": [item.text() for item in self._col_list.selectedItems()],
         }))
-        llay.addWidget(inspect_btn)        llay.addStretch()
+        llay.addWidget(inspect_btn)
+        llay.addStretch()
         left.setWidget(lw)
 
         # ── Right: tabs (results + plots) ─────────────────────────────────────

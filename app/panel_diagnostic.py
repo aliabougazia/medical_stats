@@ -157,13 +157,15 @@ class DiagnosticPanel(QWidget):
         run_fd_btn = QPushButton("▶  Build Table & Calculate")
         run_fd_btn.setObjectName("primary"); run_fd_btn.setMinimumHeight(36)
         run_fd_btn.clicked.connect(self._run_from_data)
-        sd_lay.addWidget(run_fd_btn)        insp_fd = QPushButton("\U0001f50d  Inspect Data"); insp_fd.setFixedHeight(28)
+        sd_lay.addWidget(run_fd_btn)
+        insp_fd = QPushButton("\U0001f50d  Inspect Data"); insp_fd.setFixedHeight(28)
         insp_fd.clicked.connect(lambda: self._open_inspect({
             "test_name": "2\u00d72 From Data",
             "extra": [self._fd_test_col.currentText(),
                       self._fd_ref_col.currentText()],
         }))
-        sd_lay.addWidget(insp_fd)        sd_lay.addStretch()
+        sd_lay.addWidget(insp_fd)
+        sd_lay.addStretch()
         left_tabs.addTab(sub_data, "  📊  From Data  ")
 
         # Connect column combos \u2192 repopulate value lists
@@ -225,13 +227,15 @@ class DiagnosticPanel(QWidget):
         roc_run = QPushButton("▶  Compute ROC Curve")
         roc_run.setObjectName("primary"); roc_run.setMinimumHeight(36)
         roc_run.clicked.connect(self._run_roc)
-        llay.addWidget(roc_run)        insp_roc = QPushButton("\U0001f50d  Inspect Data"); insp_roc.setFixedHeight(28)
+        llay.addWidget(roc_run)
+        insp_roc = QPushButton("\U0001f50d  Inspect Data"); insp_roc.setFixedHeight(28)
         insp_roc.clicked.connect(lambda: self._open_inspect({
             "test_name": "ROC Curve",
             "outcome": self._roc_score_col.currentText(),
             "group": self._roc_label_col.currentText(),
         }))
-        llay.addWidget(insp_roc)        llay.addStretch()
+        llay.addWidget(insp_roc)
+        llay.addStretch()
         left.setWidget(lw)
 
         # Right: tabs
