@@ -140,6 +140,50 @@ class TestsPanel(QWidget):
         self._tg_group   = self._col_combo(); fl.addRow("Group column (2 groups):", self._tg_group)
         return w
 
+    def _make_mw(self) -> QWidget:
+        """Dedicated config widget for Mann-Whitney U Test."""
+        w  = QWidget()
+        fl = QVBoxLayout(w)
+        fl.setContentsMargins(0, 0, 0, 0)
+        fl.setSpacing(4)
+
+        form = QFormLayout()
+        self._mw_outcome = self._col_combo(); form.addRow("Outcome (numeric):", self._mw_outcome)
+        self._mw_group   = self._col_combo()
+        self._mw_group.currentTextChanged.connect(self._refresh_mw_groups)
+        form.addRow("Group column:", self._mw_group)
+        fl.addLayout(form)
+
+        self._mw_group_hint = QLabel("Select exactly 2 groups (Ctrl+click):")
+        self._mw_group_hint.setStyleSheet("font-size:8pt; color:#94a3b8;")
+        self._mw_group_hint.setVisible(False)
+        fl.addWidget(self._mw_group_hint)
+
+        self._mw_group_list = QListWidget()
+        self._mw_group_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self._mw_group_list.setMaximumHeight(100)
+        self._mw_group_list.setVisible(False)
+        fl.addWidget(self._mw_group_list)
+        return w
+
+    def _refresh_mw_groups(self, col_name: str = "") -> None:
+        """Populate _mw_group_list with unique values of the chosen group column."""
+        df = data_store.df
+        if df is None or col_name not in df.columns:
+            self._mw_group_list.setVisible(False)
+            self._mw_group_hint.setVisible(False)
+            return
+        vals = sorted(df[col_name].dropna().astype(str).str.strip().unique())
+        vals = [v for v in vals if v]
+        self._mw_group_list.clear()
+        self._mw_group_list.addItems(vals)
+        visible = len(vals) > 2
+        self._mw_group_list.setVisible(visible)
+        self._mw_group_hint.setVisible(visible)
+        if not visible:
+            # auto-select all when there are exactly 2
+            self._mw_group_list.selectAll()
+
     def _make_paired(self) -> QWidget:
         w  = QWidget()
         fl = QFormLayout(w)
@@ -147,11 +191,27 @@ class TestsPanel(QWidget):
         self._p_col2 = self._col_combo(); fl.addRow("Variable 2 (after):", self._p_col2)
         return w
 
+    def _make_wilcoxon(self) -> QWidget:
+        """Dedicated config widget for Wilcoxon Signed-Rank."""
+        w  = QWidget()
+        fl = QFormLayout(w)
+        self._wlc_col1 = self._col_combo(); fl.addRow("Variable 1 (before):", self._wlc_col1)
+        self._wlc_col2 = self._col_combo(); fl.addRow("Variable 2 (after):", self._wlc_col2)
+        return w
+
     def _make_oneway(self) -> QWidget:
         w  = QWidget()
         fl = QFormLayout(w)
         self._ow_outcome = self._col_combo(); fl.addRow("Outcome (numeric):", self._ow_outcome)
         self._ow_group   = self._col_combo(); fl.addRow("Group column:", self._ow_group)
+        return w
+
+    def _make_kruskal(self) -> QWidget:
+        """Dedicated config widget for Kruskal-Wallis."""
+        w  = QWidget()
+        fl = QFormLayout(w)
+        self._kw_outcome = self._col_combo(); fl.addRow("Outcome (numeric):", self._kw_outcome)
+        self._kw_group   = self._col_combo(); fl.addRow("Group column:", self._kw_group)
         return w
 
     def _make_twoway(self) -> QWidget:
@@ -180,6 +240,14 @@ class TestsPanel(QWidget):
         fl = QFormLayout(w)
         self._chi_c1 = self._col_combo(); fl.addRow("Variable 1:", self._chi_c1)
         self._chi_c2 = self._col_combo(); fl.addRow("Variable 2:", self._chi_c2)
+        return w
+
+    def _make_mcnemar(self) -> QWidget:
+        """Dedicated config widget for McNemar's Test."""
+        w  = QWidget()
+        fl = QFormLayout(w)
+        self._mcn_c1 = self._col_combo(); fl.addRow("Variable 1:", self._mcn_c1)
+        self._mcn_c2 = self._col_combo(); fl.addRow("Variable 2:", self._mcn_c2)
         return w
 
     def _make_onesample(self) -> QWidget:
@@ -250,12 +318,12 @@ class TestsPanel(QWidget):
         self._add_cfg("One-Way ANOVA", self._make_oneway())
         self._add_cfg("Two-Way ANOVA", self._make_twoway())
         self._add_cfg("MANOVA", self._make_manova())
-        self._add_cfg("Mann-Whitney U Test", self._make_two_group())
-        self._add_cfg("Wilcoxon Signed-Rank", self._make_paired())
-        self._add_cfg("Kruskal-Wallis", self._make_oneway())
+        self._add_cfg("Mann-Whitney U Test", self._make_mw())
+        self._add_cfg("Wilcoxon Signed-Rank", self._make_wilcoxon())
+        self._add_cfg("Kruskal-Wallis", self._make_kruskal())
         self._add_cfg("Friedman Test", self._make_friedman())
         self._add_cfg("Chi-Square / Fisher Exact", self._make_chi())
-        self._add_cfg("McNemar's Test", self._make_chi())
+        self._add_cfg("McNemar's Test", self._make_mcnemar())
         self._add_cfg("Odds Ratio & Relative Risk", self._make_or_rr())
         self._add_cfg("Sample Size: Two Means", self._make_ss_means())
         self._add_cfg("Sample Size: Two Proportions", self._make_ss_props())
@@ -275,9 +343,19 @@ class TestsPanel(QWidget):
         cols = list(df.columns) if df is not None else []
         combos = [
             getattr(self, nm, None)
-            for nm in ("_tg_outcome", "_tg_group", "_p_col1", "_p_col2",
-                       "_ow_outcome", "_ow_group", "_tw_outcome", "_tw_f1", "_tw_f2",
-                       "_manova_factor", "_chi_c1", "_chi_c2", "_os_col")
+            for nm in (
+                "_tg_outcome", "_tg_group",
+                "_mw_outcome", "_mw_group",
+                "_p_col1", "_p_col2",
+                "_wlc_col1", "_wlc_col2",
+                "_ow_outcome", "_ow_group",
+                "_kw_outcome", "_kw_group",
+                "_tw_outcome", "_tw_f1", "_tw_f2",
+                "_manova_factor",
+                "_chi_c1", "_chi_c2",
+                "_mcn_c1", "_mcn_c2",
+                "_os_col",
+            )
         ]
         for cb in combos:
             if cb is None: continue
@@ -286,6 +364,10 @@ class TestsPanel(QWidget):
                    getattr(self, "_fried_list", None)):
             if lb is None: continue
             lb.clear(); lb.addItems(cols)
+        # Refresh MW group filter list to match new data
+        mw_grp = getattr(self, "_mw_group", None)
+        if mw_grp:
+            self._refresh_mw_groups(mw_grp.currentText())
 
     # ── Run dispatch ──────────────────────────────────────────────────────────
 
@@ -305,6 +387,10 @@ class TestsPanel(QWidget):
             oc, gc = self._tg_outcome.currentText(), self._tg_group.currentText()
             grps, names = self._split_groups(df, oc, gc)
             if grps is None: return
+            if len(grps) != 2:
+                self.status_message.emit(
+                    f"Independent T-Test requires exactly 2 groups; "
+                    f"found {len(grps)}: {', '.join(names)}"); return
             g1, g2 = grps; n1, n2 = names
             res = S.t_test_independent(pd.Series(g1), pd.Series(g2))
             res["group1_name"] = n1; res["group2_name"] = n2
@@ -336,21 +422,33 @@ class TestsPanel(QWidget):
             self._show_text(res.get("summary", res.get("error", "")))
 
         elif test == "Mann-Whitney U Test":
-            oc, gc = self._tg_outcome.currentText(), self._tg_group.currentText()
-            grps, names = self._split_groups(df, oc, gc)
+            oc, gc = self._mw_outcome.currentText(), self._mw_group.currentText()
+            # If the group filter list is visible, use the selection
+            selected_groups = None
+            if self._mw_group_list.isVisible():
+                selected_groups = [item.text() for item in self._mw_group_list.selectedItems()]
+                if len(selected_groups) != 2:
+                    self.status_message.emit(
+                        f"Select exactly 2 groups (Ctrl+click) — "
+                        f"{len(selected_groups)} selected."); return
+            grps, names = self._split_groups(df, oc, gc, keep_groups=selected_groups)
             if grps is None: return
+            if len(grps) != 2:
+                self.status_message.emit(
+                    f"Mann-Whitney U requires exactly 2 groups; "
+                    f"found {len(grps)}: {', '.join(names)}"); return
             g1, g2 = grps; n1, n2 = names
             res = S.mann_whitney(pd.Series(g1), pd.Series(g2))
             res["group1_name"] = n1; res["group2_name"] = n2
-            self._show_generic(res); self._plot_two_group(df, oc, gc)
+            self._show_generic(res); self._plot_two_group(df, oc, gc, keep_groups=selected_groups)
 
         elif test == "Wilcoxon Signed-Rank":
-            c1, c2 = self._p_col1.currentText(), self._p_col2.currentText()
+            c1, c2 = self._wlc_col1.currentText(), self._wlc_col2.currentText()
             res = S.wilcoxon_signed_rank(df[c1], df[c2])
             self._show_generic(res)
 
         elif test == "Kruskal-Wallis":
-            oc, gc = self._ow_outcome.currentText(), self._ow_group.currentText()
+            oc, gc = self._kw_outcome.currentText(), self._kw_group.currentText()
             grps, names = self._split_groups(df, oc, gc)
             if grps is None: return
             res = S.kruskal_wallis(*[pd.Series(g) for g in grps], group_names=names)
@@ -369,7 +467,7 @@ class TestsPanel(QWidget):
             self._show_chi(res, df, c1, c2)
 
         elif test == "McNemar's Test":
-            c1, c2 = self._chi_c1.currentText(), self._chi_c2.currentText()
+            c1, c2 = self._mcn_c1.currentText(), self._mcn_c2.currentText()
             ct = pd.crosstab(df[c1], df[c2]).values
             if ct.shape != (2, 2):
                 self.status_message.emit("McNemar requires a 2×2 table."); return
@@ -400,13 +498,18 @@ class TestsPanel(QWidget):
 
     # ── Helper: split DataFrame by group ─────────────────────────────────────
 
-    def _split_groups(self, df, outcome_col, group_col):
+    def _split_groups(self, df, outcome_col, group_col, keep_groups=None):
         if df is None:
             self.status_message.emit("No data loaded."); return None, None
-        ugroups = df[group_col].dropna().unique()
+        # Normalise: strip whitespace, drop NaN and blank strings
+        norm_series = df[group_col].astype(str).str.strip()
+        col = norm_series[norm_series != ""]
+        ugroups = col.unique()
+        if keep_groups:
+            ugroups = [g for g in ugroups if g in keep_groups]
         if len(ugroups) < 2:
             self.status_message.emit("Group column must have ≥2 unique values."); return None, None
-        grps  = [df[df[group_col] == g][outcome_col].dropna().values for g in ugroups]
+        grps  = [df[norm_series == g][outcome_col].dropna().values for g in ugroups]
         names = [str(g) for g in ugroups]
         return grps, names
 
@@ -462,11 +565,13 @@ class TestsPanel(QWidget):
 
     _PAL = ["#0ea5e9", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444", "#ec4899"]
 
-    def _plot_two_group(self, df, outcome, group):
+    def _plot_two_group(self, df, outcome, group, keep_groups=None):
         ax = self._test_plot.get_ax()
-        groups = df[group].dropna().unique()
+        groups = df[group].dropna().astype(str).str.strip().unique()
+        if keep_groups:
+            groups = [g for g in groups if g in keep_groups]
         positions = range(len(groups))
-        data = [df[df[group] == g][outcome].dropna().values for g in groups]
+        data = [df[df[group].astype(str).str.strip() == g][outcome].dropna().values for g in groups]
         vp = ax.violinplot(data, positions=list(positions), showmedians=True)
         for i, pc in enumerate(vp["bodies"]):
             pc.set_facecolor(self._PAL[i % len(self._PAL)]); pc.set_alpha(0.7)

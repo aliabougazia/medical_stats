@@ -13,6 +13,7 @@ from PyQt6.QtGui import QFont, QColor, QPalette, QIcon
 
 from .styles import STYLESHEET
 from .core import data_store
+from .widgets import get_debug_window
 
 # ── Lazy panel imports to keep startup fast ────────────────────────────────
 
@@ -147,6 +148,19 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
+        # Bottom: debug log button
+        debug_btn = QPushButton("  🐛   Debug Log")
+        debug_btn.setObjectName("nav_btn")
+        debug_btn.setMinimumHeight(36)
+        debug_btn.setFont(QFont("Segoe UI", 10))
+        debug_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        debug_btn.setStyleSheet(
+            "QPushButton { color:#94a3b8; } "
+            "QPushButton:hover { color:#ef4444; background:#1e293b; border-left:3px solid #ef4444; }"
+        )
+        debug_btn.clicked.connect(self._open_debug_window)
+        layout.addWidget(debug_btn)
+
         # Bottom: version
         ver_lbl = QLabel("v1.0.0  |  2026")
         ver_lbl.setStyleSheet("color:#334155; font-size:8pt; padding:4px 8px;")
@@ -170,6 +184,12 @@ class MainWindow(QMainWindow):
             sig = getattr(panel, "status_message", None)
             if sig is not None:
                 sig.connect(self._status.showMessage)
+
+    def _open_debug_window(self):
+        win = get_debug_window()
+        win.show()
+        win.raise_()
+        win.activateWindow()
 
     def _update_data_badge(self):
         df = data_store.df
